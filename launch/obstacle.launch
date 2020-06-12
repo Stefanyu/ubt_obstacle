@@ -1,0 +1,3 @@
+<launch>
+    <node pkg="ubt_obstacle" name="obstacle_node" type="obstacle_node" output="screen"></node>
+</launch>
