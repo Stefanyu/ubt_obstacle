@@ -15,15 +15,16 @@
 #define OBSTACLE_RIGHT_STOP_DISTANCE 0.1  //右侧停止距离
 #define OBSTACLE_LEFT_STOP_DISTANCE 0.1   //左侧停止距离
 
-#define ROBOT_LENGTH  0.645  //机器人的长度
-#define ROBOT_WIDTH   0.475  //机器人的宽度
+#define ROBOT_LENGTH  0.904  //机器人的长度
+#define ROBOT_WIDTH   0.620  //机器人的宽度
 
-#define LASER_TO_ROBOT_FRONT_DISTANCE 0.055  //雷达到机器人前沿的距离
-#define LASER_TO_ROBOT_SIDE_DISTANCE -0.055   //雷达到机器人侧面的距离
+#define LASER_TO_ROBOT_FRONT_DISTANCE 0.110  //雷达到机器人前沿的距离
+#define LASER_TO_ROBOT_SIDE_DISTANCE 0.095   //雷达到机器人侧面的距离
 
-#define LASER_INSTALL_ANGLE -M_PI/4  //雷达安装角度
+// #define LASER_INSTALL_ANGLE -M_PI/4  //雷达安装角度 150kg
+#define LASER_INSTALL_ANGLE M_PI/2  //雷达安装角度 300kg
 
-#define LASER_POINTS_IN_AREA 2  //雷达点落在区域内的数量，避免数量太少有误判
+#define LASER_POINTS_IN_AREA 1  //雷达点落在区域内的数量，避免数量太少有误判
 
 #define LASER_MAX_RANGE 1.5  //用在避障的雷达最大范围
 
@@ -78,12 +79,17 @@ void Area_Init(void)
 	g_AreaPoint[front_area][warn_area].rx = (ROBOT_LENGTH/2) + OBSTACLE_FRONT_WARN_DISTANCE;
 	g_AreaPoint[front_area][warn_area].ry = -(ROBOT_WIDTH/2) - OBSTACLE_LEFT_STOP_DISTANCE;
 
-	/*right stop area point*/
-	g_AreaPoint[right_area][stop_area].lx = -(ROBOT_LENGTH/2);
-	g_AreaPoint[right_area][stop_area].ly = -(ROBOT_WIDTH/2);
-	g_AreaPoint[right_area][stop_area].rx = (ROBOT_LENGTH/2);
-	g_AreaPoint[right_area][stop_area].ry = -(ROBOT_WIDTH/2) - OBSTACLE_RIGHT_STOP_DISTANCE;
+	// /*right stop area point*/
+	// g_AreaPoint[right_area][stop_area].lx = -(ROBOT_LENGTH/2);
+	// g_AreaPoint[right_area][stop_area].ly = -(ROBOT_WIDTH/2);
+	// g_AreaPoint[right_area][stop_area].rx = (ROBOT_LENGTH/2);
+	// g_AreaPoint[right_area][stop_area].ry = -(ROBOT_WIDTH/2) - OBSTACLE_RIGHT_STOP_DISTANCE;
 
+	/*left stop area point*/
+	g_AreaPoint[right_area][stop_area].lx = -(((LASER_TO_ROBOT_SIDE_DISTANCE + OBSTACLE_LEFT_STOP_DISTANCE) * tan(1.221)) - ((ROBOT_LENGTH/2) - LASER_TO_ROBOT_FRONT_DISTANCE));
+	g_AreaPoint[right_area][stop_area].ly = (ROBOT_WIDTH/2) + OBSTACLE_LEFT_STOP_DISTANCE; //1.221 laser angle_min
+	g_AreaPoint[right_area][stop_area].rx = (ROBOT_LENGTH/2);
+	g_AreaPoint[right_area][stop_area].ry = (ROBOT_WIDTH/2);
 
 	#if _IMAGE_DEBUG
 	if(!(g_Obstacle_Status & (0x01 << 0)))
@@ -107,7 +113,7 @@ void Area_Init(void)
 void Cal_Obstacle(const t_LidarPts lidarpts)
 {
 	static t_Area_Num areanumcal[max_area][max_area_status] = {0,0,0};
-	float areanum[max_area][max_area_status] = {0};  //区域计数
+	int areanum[max_area][max_area_status] = {0};  //区域计数
 	/*前方停止区域左侧的点*/
 
 	t_LidarPtsTf lidarptstf;
@@ -128,40 +134,69 @@ void Cal_Obstacle(const t_LidarPts lidarpts)
 				if((curpoint.x >= g_AreaPoint[j][k].lx) && (curpoint.y <= g_AreaPoint[j][k].ly) && 
 				(curpoint.x <= g_AreaPoint[j][k].rx) && (curpoint.y >= g_AreaPoint[j][k].ry))
 				{
-					areanumcal[j][k].num ++;
+					// areanumcal[j][k].num ++;
+					areanum[j][k] ++;
 					break;
 				}
 			}
 		}
 	}
 
+	// for(int j = 0;j < max_area;j ++)
+	// {
+	// 	for(int k = max_area_status - 1;k >= 0;k --)
+	// 	{
+	// 		areanumcal[j][k].count ++;
+	// 		areanumcal[j][k].totalnum += areanumcal[j][k].num;
+	// 		areanumcal[j][k].num = 0;
+			
+	// 		if(areanumcal[j][k].count >= 5)
+	// 		{
+	// 			areanum[j][k] = areanumcal[j][k].totalnum / areanumcal[j][k].count;
+
+	// 			areanumcal[j][k].count = 0;
+	// 			areanumcal[j][k].totalnum = 0;
+	// 			if(areanum[j][k] >= LASER_POINTS_IN_AREA)
+	// 			{
+	// 				g_AreaStatus.data[j] = (unsigned char)k+1;
+	// 			}
+	// 			else
+	// 			{
+	// 				g_AreaStatus.data[j] = 0;
+	// 			}
+
+	// 			m_printf("areanum[%d][%d] = %f",j,k,areanum[j][k]);
+	// 		}
+	// 	}
+	// }
 	for(int j = 0;j < max_area;j ++)
 	{
-		for(int k = max_area_status - 1;k >= 0;k --)
+		// for(int k = max_area_status - 1;k >= 0;k --)
+		for(int k = 0;k < max_area_status;k ++)
 		{
-			areanumcal[j][k].count ++;
-			areanumcal[j][k].totalnum += areanumcal[j][k].num;
-			areanumcal[j][k].num = 0;
+			// areanumcal[j][k].count ++;
+			// areanumcal[j][k].totalnum += areanumcal[j][k].num;
+			// areanumcal[j][k].num = 0;
 			
-			if(areanumcal[j][k].count >= 5)
+			// if(areanumcal[j][k].count >= 5)
+			// {
+			// 	areanum[j][k] = areanumcal[j][k].totalnum / areanumcal[j][k].count;
+
+			// 	areanumcal[j][k].count = 0;
+			// 	areanumcal[j][k].totalnum = 0;
+			if(areanum[j][k] >= LASER_POINTS_IN_AREA)
 			{
-				areanum[j][k] = areanumcal[j][k].totalnum / areanumcal[j][k].count;
-
-				areanumcal[j][k].count = 0;
-				areanumcal[j][k].totalnum = 0;
-				if(areanum[j][k] >= LASER_POINTS_IN_AREA)
-				{
-					g_AreaStatus.data[j] = (unsigned char)k+1;
-				}
-				else
-				{
-					g_AreaStatus.data[j] = 0;
-				}
-
-				m_printf("areanum[%d][%d] = %f",j,k,areanum[j][k]);
+				g_AreaStatus.data[j] = (unsigned char)k+1;
+				break;
 			}
-		}
+			else
+			{
+				g_AreaStatus.data[j] = 0;
+			}
 
+			m_printf("areanum[%d][%d] = %d",j,k,areanum[j][k]);
+			// }
+		}
 	}
 
 	#if _IMAGE_DEBUG
@@ -204,7 +239,7 @@ int main(int argc,char** argv)
 
 	ros::NodeHandle n;
 	std_msgs::UInt8MultiArray areastatuslast;
-	bool pubflag = false;
+	// bool pubflag = false;
 	
 	ros::Rate loop_rate(100);
 
@@ -212,7 +247,7 @@ int main(int argc,char** argv)
 	ros::Publisher chatter_pub = n.advertise<std_msgs::UInt8>("nav_obstacle_status",1);  //test
 
     ros::Subscriber sub_obstacle_close = n.subscribe("nav_obstacle_status", 1,Obstacle_Close_Callback);
-    ros::Subscriber sub_laser = n.subscribe("scan", 1,Laser_Callback);
+    ros::Subscriber sub_laser = n.subscribe("r2000_node/scan", 1,Laser_Callback);
 
 	g_AreaStatus.data.resize(max_area);
 	areastatuslast.data.resize(max_area);
@@ -231,24 +266,24 @@ int main(int argc,char** argv)
 		{
 			if(!(g_Obstacle_Status & (0x01 << i)))
 			{
-				if(g_AreaStatus.data[i] != areastatuslast.data[i])
-				{
-					pubflag = true;
-					areastatuslast.data[i] = g_AreaStatus.data[i];
-					m_printf("areastatuslast.data[%d] = %d",i,areastatuslast.data[i]);
-				}
+				// if(g_AreaStatus.data[i] != areastatuslast.data[i])
+				// {
+				// 	pubflag = true;
+				areastatuslast.data[i] = g_AreaStatus.data[i];
+				m_printf("areastatuslast.data[%d] = %d",i,areastatuslast.data[i]);
+				// }
 			}
 			else
 			{
-				pubflag = true;
+				// pubflag = true;
 				areastatuslast.data[i] = 0;
 			}
 		}
-		if(pubflag == true)
-		{	
-			pub_obstacle.publish(areastatuslast);
-			pubflag = false;
-		}
+		// if(pubflag == true)
+		// {	
+		pub_obstacle.publish(areastatuslast);
+		// 	pubflag = false;
+		// }
 		#if _IMAGE_DEBUG
 		debugView.waitKey(1);
 		#endif
